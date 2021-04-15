@@ -1,4 +1,4 @@
-name = "TestPkg"
+name = "HyperModularity"
 uuid = "bc4352e7-2825-48c1-aa5c-95462f20dcc0"
 authors = ["Nate Veldt"]
 version = "0.1.0"
