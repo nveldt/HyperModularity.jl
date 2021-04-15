@@ -8,7 +8,7 @@ import Random #
 import SparseArrays #
 import StatsBase #
 import Optim #
-# import SpecialFunctions #
+import SpecialFunctions #
 
 include("omega.jl")     # uses Combinatorics
 include("HSBM.jl")      # uses Parameters, Distributions
