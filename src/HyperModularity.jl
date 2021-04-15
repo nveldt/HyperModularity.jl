@@ -6,9 +6,9 @@ import LinearAlgebra #
 import Parameters #
 import Random #
 import SparseArrays #
-import StatsBase # 
+import StatsBase #
 import Optim #
-import SpecialFunctions #
+# import SpecialFunctions #
 
 include("omega.jl")     # uses Combinatorics
 include("HSBM.jl")      # uses Parameters, Distributions
