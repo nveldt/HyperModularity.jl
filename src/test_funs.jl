@@ -3,8 +3,8 @@ The functions in this script are not intended for use in computation.
 Rather, they serve as naive and ground-truth computations of key quantities, which are used for unit testing in unit_tests.jl
 """
 
-# using StatsBase
-# using Combinatorics
+using StatsBase
+using Combinatorics
 
 # ------------------------------------------------------------------------------
 # NAIVE VOLUME SUMS
@@ -40,7 +40,7 @@ function evalSumNaive2(p, Z, D)
 
     for S in T
         if partitionize(Z[S]) == p
-            s += prod(D[S])*counting_coefficient(S)
+            s += prod(D[S])*HyperModularity.counting_coefficient(S)
         end
     end
     return(s)
@@ -74,7 +74,7 @@ function test_sums(S, Z, D)
     T = Combinatorics.with_replacement_combinations(1:n, r)
     for q in T
         if q == S
-            s2 += prod(D[S]) * counting_coefficient(S)
+            s2 += prod(D[S]) * HyperModularity.counting_coefficient(S)
         end
     end
     return(s1, s2)
@@ -124,7 +124,7 @@ function naiveSecondTerm(H::hypergraph, Z::Vector{<:Integer}, Ω::IntensityFunct
         Ek = H.E[k]
         for S in T
             z = Z[S]
-            c = counting_coefficient(S)
+            c = HyperModularity.counting_coefficient(S)
             d = H.D[S]
             p = Ω.P(z)
 
@@ -152,7 +152,7 @@ function logLikelihoodNaive(H::hypergraph, Z::Array{<:Integer,1}, Ω::IntensityF
         for S in T
 
             z = Z[S]
-            c = counting_coefficient(S)
+            c = HyperModularity.counting_coefficient(S)
             θ = ϑ[S]
 
             m = get(Ek, S, 0)
@@ -177,7 +177,7 @@ function modularityNaive(H, Z, Ω; α)
         Ek = H.E[k]
         for S in T
             z = Z[S]
-            c = counting_coefficient(S)
+            c = HyperModularity.counting_coefficient(S)
             θ = D[S]
 
             m = get(Ek, S, 0)

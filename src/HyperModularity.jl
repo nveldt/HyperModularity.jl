@@ -25,6 +25,8 @@ include("AON_hyperlouvain.jl") # uses Random
 include("general_hypergraph_louvain.jl")
 include("simple_synthetic.jl")
 
+export partitionize
+
 # from analysis_helpers.jl
 export downSampleEdges!
 export subhypergraph

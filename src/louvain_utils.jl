@@ -61,7 +61,6 @@ end
 
 # These are some useful functions for converting back and forth between
 # different ways to store hypergraphs.
-
 function NeighborList(He2n::SparseArrays.SparseMatrixCSC{Float64,Int64},Hn2e::SparseArrays.SparseMatrixCSC{Float64,Int64})
     """
     NeighborList: given hypergraph (edge x node) indicence and (node x edge)
