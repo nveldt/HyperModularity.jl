@@ -542,3 +542,67 @@ function Hmat_to_Hypergraph(H::SparseArrays.SparseMatrixCSC, maxsize::Int64=25)
     N = 1:n
     return hypergraph(N, E, D)
 end
+
+
+function learn_omega_aon(e2n,Z,kmax,d,n)
+    """"
+    Given a fixed clustering, this computes the maximum likelihood estimate
+    for the hyperedge intensity parameters omega specifically for the
+    all-or-nothing modularity objective.
+
+    Assumes kmin is 2.
+    Assumes hypergraph is unweighted.
+    e2n is the edge-to-node list
+    d is the degree vector
+    n is number of nodes
+    Z is the clustering
+    """
+
+    L = maximum(Z)
+    m = length(e2n)
+    ClusVol = zeros(L)			# volume of clusters
+    for i = 1:n
+        ClusVol[Z[i]] += d[i]
+    end
+
+    # initialize to small positive number as a heuristic to avoid taking log of 0
+    EdgesAndCuts = zeros(2,kmax)
+    EdgesAndCuts[1,:] = 0.01*ones(1,kmax)
+
+    # Compute the cut penalty for each hyperedge size
+    for j = 1:m
+        edge = e2n[j]
+        k = length(edge)
+        EdgesAndCuts[1,k] += 1      # just counting number of hyperedges
+        iscut = notsame(edge,Z,Z[edge[1]])
+        if iscut
+            EdgesAndCuts[2,k] += 1
+        end
+    end
+
+    # top is in probability, bottom is out probability
+    omega = zeros(2,kmax)
+    volV = sum(ClusVol)
+
+    for k = 2:kmax
+
+        # get the volume piece
+        volsums = 0
+        for l = 1:L
+            volsums += ClusVol[l]^k
+        end
+        volVk = volV^k
+
+        omega[1,k] = (EdgesAndCuts[1,k] - EdgesAndCuts[2,k])/volsums
+        omega[2,k] = EdgesAndCuts[2,k]/(volVk - volsums)
+    end
+
+    cut_weights = zeros(kmax)
+    vol_weights = zeros(kmax)
+    for k = 2:kmax
+        cut_weights[k] = log(omega[1,k])-log(omega[2,k])
+        vol_weights[k] = omega[1,k]-omega[2,k]
+    end
+    return cut_weights, vol_weights,omega, EdgesAndCuts
+
+end

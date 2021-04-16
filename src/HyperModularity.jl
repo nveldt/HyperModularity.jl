@@ -23,11 +23,7 @@ include("graph_louvain.jl") # uses Special Functions
 include("read_data.jl")
 include("AON_hyperlouvain.jl") # uses Random
 include("general_hypergraph_louvain.jl")
-include("test_funs.jl")
-
-# Toy function examples
-include("toy_funs.jl")
-export f, f1, f2
+include("simple_synthetic.jl")
 
 # from analysis_helpers.jl
 export downSampleEdges!
@@ -91,6 +87,9 @@ export computeDyadicResolutionParameter
 export dyadicModularity
 export dyadicLogLikelihood
 export dyadicLogLikelihoodDirect
+
+# from simple_synthetic.jl
+export SimpleSyntheticHypergraph
 
 
 end
