@@ -33,15 +33,15 @@ end
     @test length(keys(H.E)) == kmax
 end
 
-@testset "read_data" begin
-    dataset = "contact-high-school-classes"
-    maxsize = 5
-    minsize = 2
-    return_labels = true
-    H, Z = read_hypergraph_data(dataset,maxsize,minsize,return_labels)
-    @test typeof(H) == hypergraph
-    @test length(Z) == length(H.D)
-end
+# @testset "read_data" begin
+#     dataset = "contact-high-school-classes"
+#     maxsize = 5
+#     minsize = 2
+#     return_labels = true
+#     H, Z = read_hypergraph_data(dataset,maxsize,minsize,return_labels)
+#     @test typeof(H) == hypergraph
+#     @test length(Z) == length(H.D)
+# end
 
 @testset "vol" begin
     # some tests here are erroring

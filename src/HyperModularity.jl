@@ -71,7 +71,7 @@ export read_hypergraph_label_names
 export read_hypergraph_labels
 export read_hypergraph_edges
 export read_hypergraph_data
-export hyperedges
+export hypermodularity_datasets
 
 # from AON_hypergraph_louvain.jl; uses Random
 export SuperNode_PPLouvain

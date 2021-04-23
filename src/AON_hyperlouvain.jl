@@ -1,18 +1,18 @@
 
-function SuperNode_PPLouvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
+function AON_Louvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
     randflag = !(scan_order == "lexical")
     cut_weights, vol_weights, e2n, n2e,w,d,elen = AON_Inputs(H,Ω.ω,α,kmax)
-    Zset = SuperNode_PPLouvain(n2e,e2n,w,d,elen,cut_weights,vol_weights,kmax,randflag,maxits,verbose,Z0,clusterpenalty);
+    Zset = AON_Louvain(n2e,e2n,w,d,elen,cut_weights,vol_weights,kmax,randflag,maxits,verbose,Z0,clusterpenalty);
     Z = Zset[:,end];
     return Z
 end
 
-# function SuperNode_PPLouvain(H::hypergraph,Ω::IntensityFunction,kmax::Int64 = maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true;α,verbose=true,scan_order="random", Z0 = collect(1:length(H.D)))
-#    Z = SuperNode_PPLouvain(H,Ω;α=α,kmax=kmax,maxits=maxits,bigInt=bigInt,verbose=verbose,scan_order=scan_order,Z0 = Z0)
+# function AON_Louvain(H::hypergraph,Ω::IntensityFunction,kmax::Int64 = maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true;α,verbose=true,scan_order="random", Z0 = collect(1:length(H.D)))
+#    Z = AON_Louvain(H,Ω;α=α,kmax=kmax,maxits=maxits,bigInt=bigInt,verbose=verbose,scan_order=scan_order,Z0 = Z0)
 #    return Z
 # end
 
-function SuperNode_PPLouvain(node2edges::Vector{Vector{Int64}},
+function AON_Louvain(node2edges::Vector{Vector{Int64}},
     edge2nodes::Vector{Vector{Int64}},w::Vector{Float64},
     d::Vector{Float64},elen::Vector{Int64},
     alp::Vector{Float64},bet::Vector{Float64},
@@ -35,8 +35,8 @@ function SuperNode_PPLouvain(node2edges::Vector{Vector{Int64}},
         * kmax = maximum hyperedge size
         * Zwarm = warm start clustering (optional)
         * randflag = whether or not to permute node order
-        * maxits = Maximum # of greedy passes over the node set
-        * clusterpenalty = we include term clusterpenalty*log(k) in objective
+        * maxits = Maximum number of greedy passes over the node set
+        * clusterpenalty = include term clusterpenalty*log(k) in objective
             so if clusterpenalty > 0, there is incentive to form fewer clusters
     """
 
