@@ -5,6 +5,7 @@ using HyperModularity
 using Test
 using StatsBase
 using Combinatorics
+using SparseArrays
 
 include("../src/test_funs.jl")
 
@@ -35,14 +36,14 @@ end
 end
 
 @testset "louvain_utils" begin
-    
+
     include("louvain_utils_tests.jl")
 end
 
-@testset "vol" begin
-    # some tests here are erroring
-    # include("vol_tests.jl")
-end
+# @testset "vol" begin
+#     # some tests here are erroring
+#     # include("vol_tests.jl")
+# end
 
 # @testset "inference" begin
 #

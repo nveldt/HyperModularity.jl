@@ -93,5 +93,9 @@ export dyadicLogLikelihoodDirect
 # from simple_synthetic.jl
 export SimpleSyntheticHypergraph
 
+# from louvain_utils
+export incidence2elist
+export elist2incidence
+export NeighborList
 
 end
