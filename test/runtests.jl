@@ -35,6 +35,7 @@ end
 end
 
 @testset "louvain_utils" begin
+    
     include("louvain_utils_tests.jl")
 end
 
