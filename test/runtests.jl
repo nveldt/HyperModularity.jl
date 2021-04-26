@@ -19,6 +19,7 @@ end
 @testset "hsbm" begin
     n = 20
     Z = rand(1:5, n)
+    Z = Int64.(Z)
     ϑ = dropdims(ones(1,n) + rand(1,n), dims = 1)
     μ = mean(ϑ)
     kmax = 4
@@ -33,25 +34,13 @@ end
     @test length(keys(H.E)) == kmax
 end
 
-# @testset "read_data" begin
-#     dataset = "contact-high-school-classes"
-#     maxsize = 5
-#     minsize = 2
-#     return_labels = true
-#     H, Z = read_hypergraph_data(dataset,maxsize,minsize,return_labels)
-#     @test typeof(H) == hypergraph
-#     @test length(Z) == length(H.D)
-# end
+@testset "louvain_utils" begin
+    include("louvain_utils_tests.jl")
+end
 
 @testset "vol" begin
     # some tests here are erroring
     # include("vol_tests.jl")
-end
-
-@testset "louvain_utils" begin
-
-    # Nate will eventually write tests for all of these
-
 end
 
 # @testset "inference" begin
