@@ -23,7 +23,7 @@ end
     Z = Int64.(Z)
     ϑ = dropdims(ones(1,n) + rand(1,n), dims = 1)
     μ = mean(ϑ)
-    kmax = 4
+    kmax = Int64(4)
 
     ω(x, α) = (x[1]+1)^(-α[x[2]]*x[2])
 

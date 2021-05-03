@@ -74,7 +74,8 @@ export read_hypergraph_data
 export hypermodularity_datasets
 
 # from AON_hypergraph_louvain.jl; uses Random
-export SuperNode_PPLouvain
+export Simple_AON_Louvain
+export AON_Louvain
 
 # from general_hypegraph_louvain.jl
 export HyperLouvain

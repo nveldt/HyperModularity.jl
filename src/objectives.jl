@@ -4,7 +4,6 @@ function first_term_eval(H::hypergraph,Z::Array{<:Integer,1}, Ω::IntensityFunct
     possible using existing code.
     H: hypergraph
     Z: array storing cluster indices; Z[i] is the cluster node i is in
-    kmax: maximum hyperedges size in H
     Ω: group interation function (e.g., planted partition)
     """
 
@@ -70,7 +69,3 @@ function logLikelihood(H::hypergraph, Z::Array{<:Integer, 1}, Ω::IntensityFunct
     end
     return Q, K, C
 end
-
-
-
-

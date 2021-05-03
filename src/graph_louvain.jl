@@ -39,10 +39,6 @@ function CliqueExpansion(H::hypergraph,weighted::Bool=true,binary::Bool=false)
     return A
 end
 
-# function CliqueExpansionModularity(H::hypergraph,gamma::Float64=1.0,weighted::Bool=true,randflag::Bool=false,binary::Bool=false,clusterpenalty::Float64=0.0,maxits::Int64=10000)
-#     return CliqueExpansionModularity(H,gamma;weighted=weighted,randflag=randflag,binary=binary,clusterpenalty=clusterpenalty,maxits=maxits)
-# end
-
 function CliqueExpansionModularity(H::hypergraph,gamma::Float64=1.0;weighted::Bool=true,randflag::Bool=false,binary::Bool=false,clusterpenalty::Float64=0.0,maxits::Int64=10000)
     """
     Perform a clique expansion on the hypergraph H and then run vanilla
@@ -59,8 +55,8 @@ function StarExpansionModularity(H::hypergraph,gamma::Float64=1.0;weighted::Bool
     """
     He2n, w = hypergraph2incidence(H)
     m,n = size(He2n)
-    A = [spzeros(n,n) He2n'; He2n spzeros(m,m) ]
-    Za = VanillaModularity(A,gamma,randflag,maxits)
+    A = [SparseArrays.spzeros(n,n) He2n'; He2n SparseArrays.spzeros(m,m) ]
+    Za = VanillaModularity(A,gamma,randflag,0.0,maxits)
     return Za[1:n]
 end
 

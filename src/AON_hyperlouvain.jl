@@ -1,24 +1,91 @@
+function Simple_AON_Louvain(H::hypergraph;startclusters="singletons",gamma=1.0,
+	clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,
+	randflag::Bool = false,verbose=true,Z0 = collect(1:length(H.D)))
+	"""
+    Simplest version of AON Louvain, the doesn't require setting an initial
+    intensity function Ω. Intensity function is generated from one of a few
+	different choices:
+		singletons: learn omega from all nodes being in a singleton cluster
+		cliquelouvain: use clique expansion + graph louvain warmstart with parameter gamma
+		starlouvain: use start expansion + graph louvain warmstart with parameter gamma
+	"""
 
-function AON_Louvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
-    randflag = !(scan_order == "lexical")
-    cut_weights, vol_weights, e2n, n2e,w,d,elen = AON_Inputs(H,Ω.ω,α,kmax)
-    Zset = AON_Louvain(n2e,e2n,w,d,elen,cut_weights,vol_weights,kmax,randflag,maxits,verbose,Z0,clusterpenalty);
-    Z = Zset[:,end];
-    return Z
+	n = length(H.D)
+	if startclusters == "singletons"
+		Z0 = collect(1:n)
+	elseif startclusters == "cliquelouvain"
+		Z0 = CliqueExpansionModularity(H,gamma)
+	elseif startclusters == "starlouvain"
+		Z0 = StarExpansionModularity(H,gamma)
+	else
+		error("There is no starting clustering called $startclusters. Choose from: [\"singletons\", \"cliquelouvain\",\"starlouvain\"]")
+	end
+
+	d = Float64.(H.D)
+	n = length(d)
+	kmax = maximum(keys(H.E))
+	He2n, weights = hypergraph2incidence(H)
+    e2n = incidence2elist(He2n);
+    n2e = incidence2elist(SparseArrays.sparse(He2n'))
+    m = length(e2n)
+    elen = zeros(Int64,m)
+    for e = 1:m
+        elen[e] = length(e2n[e])
+    end
+	β, γ,omega,EdgesAndCuts = learn_omega_aon(e2n,weights,Z0,kmax,d,n)
+	Zset = AON_Louvain(n2e,e2n,weights,d,elen,β,γ,kmax,randflag,maxits,verbose,Z0,clusterpenalty)
+	Z = Zset[:,end]
+	return Z
 end
 
-# function AON_Louvain(H::hypergraph,Ω::IntensityFunction,kmax::Int64 = maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true;α,verbose=true,scan_order="random", Z0 = collect(1:length(H.D)))
-#    Z = AON_Louvain(H,Ω;α=α,kmax=kmax,maxits=maxits,bigInt=bigInt,verbose=verbose,scan_order=scan_order,Z0 = Z0)
-#    return Z
-# end
+function AON_Louvain(H::hypergraph,β::Vector{Float64},γ::Vector{Float64};maxits::Int64=100,
+	verbose::Bool=true,randflag::Bool = false,clusterpenalty=0.0,Z0 = collect(1:length(H.D)))
+	"""
+	Calling AON_Louvain without explicit intensity function Ω. Just requires
+	cut and volume penalties β and γ. Assumes hyperedges are of size >= 2.
+	"""
+	if length(H.E[1]) > 0
+		println("This code assumes a hypergraph where hyperedges have at least two nodes.")
+	end
+	if γ[1] != 0 || β[1] != 0
+		println("Code assumes there are no hyperedges of size 1. Setting β[1] = γ[1] = 0.")
+		β[1] = 0
+		γ[1] = 0
+	end
+	d = Float64.(H.D)
+	n = length(d)
+	kmax = maximum(keys(H.E))
+	@assert(kmax == length(β))
+	He2n, weights = hypergraph2incidence(H)
+    e2n = incidence2elist(He2n);
+    n2e = incidence2elist(SparseArrays.sparse(He2n'))
+    m = length(e2n)
+    elen = zeros(Int64,m)
+    for e = 1:m
+        elen[e] = length(e2n[e])
+    end
+	Zset = AON_Louvain(n2e,e2n,weights,d,elen,β,γ,kmax,randflag,maxits,verbose,Z0,clusterpenalty)
+	Z = Zset[:,end];
+end
+
+
+function AON_Louvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
+	"""
+	If you prefer to call the function similar to the symmetric HMLL function.
+	"""
+	randflag = !(scan_order == "lexical")
+    β, γ, e2n, n2e,w,d,elen = AON_Inputs(H,Ω.ω,α,kmax)
+    Zset = AON_Louvain(n2e,e2n,w,d,elen,β,γ,kmax,randflag,maxits,verbose,Z0,clusterpenalty)
+    Z = Zset[:,end]
+    return Z
+end
 
 function AON_Louvain(node2edges::Vector{Vector{Int64}},
     edge2nodes::Vector{Vector{Int64}},w::Vector{Float64},
     d::Vector{Float64},elen::Vector{Int64},
-    alp::Vector{Float64},bet::Vector{Float64},
+    β::Vector{Float64},γ::Vector{Float64},
     kmax::Int64,randflag::Bool=false,maxits::Int64=100,verbose::Bool=true,
     Zwarm::Vector{Int64}=Vector{Int64}(),clusterpenalty = 0)
-
     """
     Supernode version of Hypergraph Louvain for planted partition model
         (all-or-nothing cut penalties).
@@ -30,8 +97,8 @@ function AON_Louvain(node2edges::Vector{Vector{Int64}},
         * elen[e] = number of nodes in hyperedge e
                      note that this may be > length(edge2nodes[e])
                      if some of the nodes are supernodes
-        * alp = scaling values of for hyperedge cuts
-        * bet = scaling values for volumes
+        * β = scaling values of for hyperedge cuts
+        * γ = scaling values for volumes
         * kmax = maximum hyperedge size
         * Zwarm = warm start clustering (optional)
         * randflag = whether or not to permute node order
@@ -42,7 +109,7 @@ function AON_Louvain(node2edges::Vector{Vector{Int64}},
 
     n = length(d)
     # Step 1: greedy moves until no more improvement
-    Z, improved = ANHL_Step(node2edges,edge2nodes,w,d,elen,alp,bet,kmax,
+    Z, improved = ANHL_Step(node2edges,edge2nodes,w,d,elen,β,γ,kmax,
                             randflag,maxits,verbose,Zwarm,clusterpenalty)
 
     # Store all clusterings found
@@ -67,7 +134,7 @@ function AON_Louvain(node2edges::Vector{Vector{Int64}},
         dSuper = condense_d(d,Z_old)
         ########
         # Step 1: Go back to greedy local moves, this time on the reduced hypergraph
-        Zsuper, improved = ANHL_Step(n2e,e2n,wSuper,dSuper,elenSuper,alp,bet,
+        Zsuper, improved = ANHL_Step(n2e,e2n,wSuper,dSuper,elenSuper,β,γ,
                                 kmax,randflag,maxits,verbose,Vector{Int64}(),clusterpenalty)
         N = length(Zsuper)    # N = number of supernodes = number clusters from last round
 
@@ -103,7 +170,7 @@ end
 
 function ANHL_Step(node2edges::Vector{Vector{Int64}},edge2nodes::Vector{Vector{Int64}},
     w::Vector{Float64},d::Vector{Float64},elen::Vector{Int64},
-    alp::Vector{Float64},bet::Vector{Float64},kmax::Int64,
+    β::Vector{Float64},γ::Vector{Float64},kmax::Int64,
     randflag::Bool=false,maxits::Int64=100,verbose::Bool=true,Zwarm::Vector{Int64}=Vector{Int64}(),clusterpenalty=0)
     """
     Basic step Louvain algorithm: iterate through nodes and greedily move
@@ -153,7 +220,7 @@ function ANHL_Step(node2edges::Vector{Vector{Int64}},edge2nodes::Vector{Vector{I
     cutpenalty = zeros(m)
     for e = 1:m
         k = elen[e]      				# size of the edge
-        cutpenalty[e] = alp[k]*w[e] 	# penalty for cutting it
+        cutpenalty[e] = β[k]*w[e] 	# penalty for cutting it
     end
 
     # Store node neighbors of each node
@@ -231,7 +298,7 @@ function ANHL_Step(node2edges::Vector{Vector{Int64}},edge2nodes::Vector{Vector{I
                 Δvol = 0
                 for k = 1:kmax
 					# Better if this is smaller
-                    Δvol += bet[k]*((vS-dv)^k + (vJ+dv)^k - vS^k - vJ^k)
+                    Δvol += γ[k]*((vS-dv)^k + (vJ+dv)^k - vS^k - vJ^k)
                 end
 
                 # Change in cut
@@ -461,36 +528,6 @@ function condense_d(d::Vector{Float64},Z::Vector{Int64})
 end
 
 
-function AON_Inputs(H,ω,α,kmax)
-    """
-    Given a hyperedge H, ω function, and α which parameterizes ω,
-    return all of the data structures you need to run the
-    all-or-nothing louvain algorithm
-    """
-    cut_weights = zeros(kmax)
-    vol_weights = zeros(kmax)
-    for k = 2:kmax
-        cut_weights[k] = log(ω([1,k],α))-log(ω([0,k],α))
-        vol_weights[k] = ω([1,k],α)-ω([0,k],α)
-    end
-
-    He2n, edge_weights = hypergraph2incidence(H)
-    e2n = incidence2elist(He2n);
-    n2e = incidence2elist(SparseArrays.sparse(He2n'));
-    m = length(e2n)
-    edge_len = zeros(Int64,m)
-    for e = 1:m
-        edge_len[e] = length(e2n[e])
-    end
-    deg = vec(sum(He2n,dims = 1))
-    # @show H.D-deg
-    # @assert(deg == H.D)
-
-    return cut_weights, vol_weights, e2n, n2e, edge_weights,deg,edge_len
-
-end
-
-
 function Elist_to_Hypergraph(elist::Vector{Vector{Int64}}, maxsize::Int64=25)
     """
     Converts a binary hypergraph incidence matrix to type "hypergraph".
@@ -543,15 +580,48 @@ function Hmat_to_Hypergraph(H::SparseArrays.SparseMatrixCSC, maxsize::Int64=25)
     return hypergraph(N, E, D)
 end
 
+function AON_Inputs(H,ω,α,kmax)
+    """
+    Given a hyperedge H, ω function, and α which parameterizes ω,
+    return all of the data structures you need to run the
+    all-or-nothing louvain algorithm
+    """
+    β = zeros(kmax)
+    γ = zeros(kmax)
+    for k = 2:kmax
+        β[k] = log(ω([1,k],α))-log(ω([0,k],α))
+        γ[k] = ω([1,k],α)-ω([0,k],α)
+    end
 
-function learn_omega_aon(e2n,Z,kmax,d,n)
+    He2n, edge_weights = hypergraph2incidence(H)
+    e2n = incidence2elist(He2n);
+    n2e = incidence2elist(SparseArrays.sparse(He2n'))
+    m = length(e2n)
+    edge_len = zeros(Int64,m)
+    for e = 1:m
+        edge_len[e] = length(e2n[e])
+    end
+    # deg = vec(sum(He2n,dims = 1)) # only works if hypergraph is unweighted
+	deg = H.D
+    # @show H.D-deg
+    # @assert(deg == H.D)
+
+    return β, γ, e2n, n2e, edge_weights,deg,edge_len
+
+end
+
+function learn_omega_aon(e2n,weights,Z,kmax,d,n)
     """"
     Given a fixed clustering, this computes the maximum likelihood estimate
     for the hyperedge intensity parameters omega specifically for the
     all-or-nothing modularity objective.
 
+	These esimates are obtained by directly deriving the AON modularity
+	with respect to omega_{1,k} and omega_{0,k}, probabilities for turning size-k
+	tuples into hypergraphs, if they are completely contained inside a cluster
+	or not.
+
     Assumes kmin is 2.
-    Assumes hypergraph is unweighted.
     e2n is the edge-to-node list
     d is the degree vector
     n is number of nodes
@@ -565,27 +635,29 @@ function learn_omega_aon(e2n,Z,kmax,d,n)
         ClusVol[Z[i]] += d[i]
     end
 
-    # initialize to small positive number as a heuristic to avoid taking log of 0
+	# top row is weight of edges; bottom row is weight of cut edges
     EdgesAndCuts = zeros(2,kmax)
+
+	# initialize to small positive number as a heuristic, to avoid taking log of 0
     EdgesAndCuts[1,:] = 0.01*ones(1,kmax)
 
     # Compute the cut penalty for each hyperedge size
     for j = 1:m
         edge = e2n[j]
+		we = weights[j]
         k = length(edge)
-        EdgesAndCuts[1,k] += 1      # just counting number of hyperedges
+        EdgesAndCuts[1,k] += we     # just counting number of hyperedges
         iscut = notsame(edge,Z,Z[edge[1]])
         if iscut
-            EdgesAndCuts[2,k] += 1
+            EdgesAndCuts[2,k] += we
         end
     end
 
-    # top is in probability, bottom is out probability
+    # top row is in probability, bottom is out probability
     omega = zeros(2,kmax)
     volV = sum(ClusVol)
 
     for k = 2:kmax
-
         # get the volume piece
         volsums = 0
         for l = 1:L
@@ -597,12 +669,164 @@ function learn_omega_aon(e2n,Z,kmax,d,n)
         omega[2,k] = EdgesAndCuts[2,k]/(volVk - volsums)
     end
 
-    cut_weights = zeros(kmax)
-    vol_weights = zeros(kmax)
+    β = zeros(kmax)
+    γ = zeros(kmax)
     for k = 2:kmax
-        cut_weights[k] = log(omega[1,k])-log(omega[2,k])
-        vol_weights[k] = omega[1,k]-omega[2,k]
+        β[k] = log(omega[1,k])-log(omega[2,k])
+        γ[k] = omega[1,k]-omega[2,k]
     end
-    return cut_weights, vol_weights,omega, EdgesAndCuts
+    return β, γ,omega,EdgesAndCuts
+end
 
+function learn_omega_aon(H::hypergraph,Z::Vector{Int64})
+	"""
+	Same function as above, but takes input type Hypergraph.
+	"""
+	d = H.D
+	n = length(d)
+	kmax = maximum(keys(H.E))
+	e2n,weights = hyperedge_formatting(H)
+	return learn_omega_aon(e2n,weights,Z,kmax,d,n)
+end
+
+
+function Kaminski_default(H::hypergraph)
+	kmax = maximum(keys(H.E))
+	EdgeList,weights = hyperedge_formatting(H)
+	m = length(EdgeList)
+	Mvec = zeros(kmax)
+	for i = 1:m
+		edge = EdgeList[i]
+		we = weights[i]
+		k = length(edge)
+		Mvec[k] += we
+	end
+	volH = sum(H.D)
+	beta = ones(kmax)
+	beta[1] = 0
+	gamma = zeros(kmax)
+	for k = 2:kmax
+		gamma[k] = Mvec[k]/(volH)^k
+	end
+	return beta, gamma
+end
+
+
+function omega_to_betagamma(omega)
+	"""
+	Go from AON intensity parameters to parameters omega and gamma.
+	Page 7 in text.
+	"""
+	kmax = size(omega,2)
+	β = zeros(kmax)
+	γ = zeros(kmax)
+	for k = 1:kmax
+		β[k] = log(omega[1,k]/omega[2,k])
+		γ[k] = (omega[1,k]-omega[2,k])/β[k]
+	end
+	return β, γ
+end
+
+function betagamma_to_omega(β, γ)
+	"""
+	Go from parameters omega and gamma to AON intensity parameters.
+	Page 7 in text.
+	"""
+	kmax = length(β)
+	omega = zeros(2,kmax)
+	for k = 1:kmax
+		omega[2,k] = β[k]*γ[k]/(exp(β[k])-1)
+		omega[1,k,] = exp(β[k])*omega[2,k]
+	end
+
+	return omega
+end
+
+
+function allsame(v::Vector{Float64})
+	"""
+	Checks whether all entries of a vector are the same.
+	"""
+    v1 = v[1]
+    for j = 2:length(v)
+        if v[j] != v1
+            return false
+        end
+    end
+    return true
+end
+
+function modularity_aon(H::hypergraph,Z::Vector{Int64},omega::Array{Float64,2})
+	"""
+	Computes the all or nothing modularity function.
+		Equation (4), function Q in manuscript.
+	"""
+	β, γ = omega_to_betagamma(omega)
+	n = length(Z)
+	kmax = maximum(keys(H.E))
+	kmin = maximum(keys(H.E))
+	if kmin == 1
+		error("Function requires hyperedges to have at least size 2.")
+	end
+
+	# m_k = Mvec[k] = weighted number of hyperedges of size k
+	mvec = zeros(kmax)
+	for k = kmin:kmax
+        El = H.E[k]
+        for edge in keys(El)
+            mvec[k] = El[edge]
+        end
+    end
+
+	L = maximum(Z)
+    ClusVol = zeros(L)			# volume of clusters
+    for i = 1:n
+        ClusVol[Z[i]] += H.D[i]
+    end
+
+	obj = 0
+	for k = kmin:kmax
+		# Compute cut penalty of the objective
+		El = H.E[k]
+		for edge in keys(El)
+			if ~allsame(Z[edge])
+				obj -= El[edge]*β[k]
+			end
+		end
+
+		# Volume penalty of the objective
+		for l = 1:L
+			obj -= β[k]*γ[k]*ClusVol[l]^k
+		end
+	end
+
+	# Additional term that is constant with respect to clustervec
+	for k = kmin:kmax
+		obj += β[k]*mvec[k]
+		El = H.E[k]
+		for edge in keys(El)
+			obj += El[edge]*log(omega[2,k])
+			p = partitionize(Z[edge])
+			bR = Combinatorics.multinomial(p...)
+			obj -= prod(H.D[edge])*omega[2,k]*bR
+		end
+	end
+
+	if likelihood == true
+		# extra part for log-likelihood computation
+		loglikhood = obj
+		for k = kmin:kmax
+			El = H.E[k]
+			for edge in keys(El)
+				aR = El[edge]
+				loglikhood += aR*log(prod(H.D[edge]))
+				p = partitionize(Z[edge])
+				bR = Combinatorics.multinomial(p...)
+				loglikhood -=  aR*log(bR) - log(factorial(aR))
+			end
+		end
+		return obj, loglikhood
+	else
+		return obj
+	end
 end
