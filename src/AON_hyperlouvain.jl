@@ -602,7 +602,7 @@ function AON_Inputs(H,ω,α,kmax)
         edge_len[e] = length(e2n[e])
     end
     # deg = vec(sum(He2n,dims = 1)) # only works if hypergraph is unweighted
-	deg = H.D
+	deg = 1.0*H.D # coercion to float for compatibility with AON_louvain
     # @show H.D-deg
     # @assert(deg == H.D)
 
