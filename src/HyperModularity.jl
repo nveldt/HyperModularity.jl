@@ -52,9 +52,9 @@ export first_term_eval
 export modularity
 export logLikelihood
 
-# from interence.jl
+# from inference.jl
 export estimateΩEmpirically
-export learnParamters
+export learnParameters
 export formObjective
 export formObjectives
 
@@ -98,5 +98,8 @@ export SimpleSyntheticHypergraph
 export incidence2elist
 export elist2incidence
 export NeighborList
+
+# from analysis_helpers
+export mutualInformation
 
 end
