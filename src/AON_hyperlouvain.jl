@@ -32,7 +32,7 @@ function Simple_AON_Louvain(H::hypergraph;startclusters="singletons",gamma=1.0,
     for e = 1:m
         elen[e] = length(e2n[e])
     end
-	β, γ,omega,EdgesAndCuts = learn_omega_aon(e2n,weights,Z0,kmax,d,n)
+	β, γ,omega = learn_omega_aon(e2n,weights,Z0,kmax,d,n)
 	Zset = AON_Louvain(n2e,e2n,weights,d,elen,β,γ,kmax,randflag,maxits,verbose,Z0,clusterpenalty)
 	Z = Zset[:,end]
 	return Z
@@ -68,6 +68,23 @@ function AON_Louvain(H::hypergraph,β::Vector{Float64},γ::Vector{Float64};maxit
 	Z = Zset[:,end];
 end
 
+function alternate_hypergraph_storage(H::hypergraph)
+	"""
+	It will be quicker in some cases to store the hypergraph in an alternate format.
+	"""
+	d = Float64.(H.D)
+	n = length(d)
+	kmax = maximum(keys(H.E))
+	He2n, weights = HyperModularity.hypergraph2incidence(H)
+	e2n = incidence2elist(He2n);
+	n2e = incidence2elist(SparseArrays.sparse(He2n'))
+	m = length(e2n)
+	elen = zeros(Int64,m)
+    for e = 1:m
+        elen[e] = length(e2n[e])
+    end
+	return d,n,kmax,e2n,n2e,weights,elen
+end
 
 function AON_Louvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
 	"""
@@ -673,9 +690,14 @@ function learn_omega_aon(e2n,weights,Z,kmax,d,n)
     γ = zeros(kmax)
     for k = 2:kmax
         β[k] = log(omega[1,k])-log(omega[2,k])
+		# if β[k] == Inf
+		# 	# In cases where β[k] = Inf,
+		# 	# we replace with a high but finite value instead
+		# 	β[k] = 1e3
+		# end
         γ[k] = omega[1,k]-omega[2,k]
     end
-    return β, γ,omega,EdgesAndCuts
+    return β, γ,omega
 end
 
 function learn_omega_aon(H::hypergraph,Z::Vector{Int64})
@@ -756,7 +778,20 @@ function allsame(v::Vector{Float64})
     return true
 end
 
-function modularity_aon(H::hypergraph,Z::Vector{Int64},omega::Array{Float64,2})
+function allsame(v::Vector{Int64})
+	"""
+	Checks whether all entries of a vector are the same.
+	"""
+    v1 = v[1]
+    for j = 2:length(v)
+        if v[j] != v1
+            return false
+        end
+    end
+    return true
+end
+
+function modularity_aon(H::hypergraph,Z::Vector{Int64},omega::Array{Float64,2};likelihood=false)
 	"""
 	Computes the all or nothing modularity function.
 		Equation (4), function Q in manuscript.

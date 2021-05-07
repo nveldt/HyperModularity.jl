@@ -76,6 +76,8 @@ export hypermodularity_datasets
 # from AON_hypergraph_louvain.jl; uses Random
 export Simple_AON_Louvain
 export AON_Louvain
+export learn_omega_aon
+export modularity_aon
 
 # from general_hypegraph_louvain.jl
 export HyperLouvain
