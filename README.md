@@ -5,7 +5,7 @@
 
 # HyperModularity
 
-This package contains code for hypergraph modularity clustering algorithms, based on the generative model described in the following paper
+This package contains code for hypergraph modularity clustering algorithms, based on the generative model described in
 
 **Generative hypergraph clustering: from blockmodels to modularity**  
 Philip S. Chodrow, Nate Veldt, Austin R. Benson  
@@ -64,6 +64,6 @@ Z = AON_Louvain(H,Ω)
 Z = AON_Louvain(H,Ω)
 ```
 
-#### Run symmetric Louvain algorithm
+#### Additional examples
 
-Need to add simple examples!
+See demo notebooks in demos folder for other examples of how to use the code.

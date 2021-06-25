@@ -1,7 +1,16 @@
 function CliqueExpansion(H::hypergraph,weighted::Bool=true,binary::Bool=false)
     """
     Weighted clique expansion where a hyperedge e is expanded to a
-    weighted clique with each edge having weight 1/(|e| - 1)
+    weighted clique.
+
+    # Arguments
+
+    If weighted = true:
+        Each hyperedge is expanded to a clique where edges
+        all have weight 1/(|e|-1). Otherwise weight is 1
+    If binary = true:
+        All edge weights are erased and the graph is
+        unweighted. There's an edge (i,j) if i and j ever share a hyperedge
     """
     n = length(H.D)
     I = Int64[]
@@ -41,8 +50,31 @@ end
 
 function CliqueExpansionModularity(H::hypergraph,gamma::Float64=1.0;weighted::Bool=true,randflag::Bool=false,binary::Bool=false,clusterpenalty::Float64=0.0,maxits::Int64=10000)
     """
-    Perform a clique expansion on the hypergraph H and then run vanilla
-    modularity on the resulting graph.
+    Perform a clique expansion on the hypergraph H and then run standard
+    Louvain algorithm on the resulting graph.
+
+    # Arguments
+
+    gamma:
+            the resolution parameter. Setting 1.0 means greedily optimize
+            modularity. Setting gamma higher produces more clusters.
+    randflag:
+            if true, randomize order that Louvain visits nodes
+    clusterpenalty:
+            nonnegative penalty for the number of clusters. If 0.0,
+            there is no penalty for having many clusters. Higher number penalizes
+            number of clusters
+    maxits:
+            maximum number of times Louvain iterates through ever node to
+            perform greedy moves
+
+    If weighted = true:
+        Each hyperedge is expanded to a clique where edges
+        all have weight 1/(|e|-1). Otherwise weight is 1
+
+    If binary = true:
+        All edge weights are erased and the graph is
+        unweighted. There's an edge (i,j) if i and j ever share a hyperedge
     """
     A = CliqueExpansion(H,weighted,binary)
     return VanillaModularity(A,gamma,randflag,clusterpenalty,maxits)
@@ -52,6 +84,8 @@ function StarExpansionModularity(H::hypergraph,gamma::Float64=1.0;weighted::Bool
     """
     Perform a clique expansion on the hypergraph H and then run vanilla
     modularity on the resulting graph.
+
+    For description of arguments, see CliqueExpansionModularity
     """
     He2n, w = hypergraph2incidence(H)
     m,n = size(He2n)
@@ -249,9 +283,6 @@ A = adjacency matrix for a graph
 c = clustering vector
 w = weights vector (often taken to be degrees of nodes)
 lam = resolution paramter
-
-This can be replaced with our function for checking the hypergraph modularity
-objective.
 """
 function LamCCobj(A::SparseArrays.SparseMatrixCSC,c,w,lam)
 
@@ -272,11 +303,11 @@ function LamCCobj(A::SparseArrays.SparseMatrixCSC,c,w,lam)
 end
 
 
-"""
-Run the Louvain algorithm many times, taking the result with the best objective.
-"""
-function Many_Louvain(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},lam::Float64,numtimes::Int64,maxits::Int64=10000)
 
+function Many_Louvain(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},lam::Float64,numtimes::Int64,maxits::Int64=10000)
+    """
+    Run the Louvain algorithm many times, taking the result with the best objective.
+    """
     n = size(A,1)
     BestObj = Inf
     cBest = collect(1:n)
@@ -303,16 +334,16 @@ function Many_Louvain(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{F
     return cBest, BestObj
 end
 
-"""
-The full Louvain algorithm. Lambda is the resolution parameter; think of it as
-lambda = gamma/(vol(G)), where gamma is the more traditional resolution parameter
-associated with the modularity objective.
 
-w = weights function, w[i] = weight for node i. This is often the degree of node
-    i, but doesn't have to be.
-"""
 function LambdaLouvain(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},lam::Float64,randflag::Bool=false,maxits::Int64=10000,clusterpenalty::Float64=0.0)
+    """
+    The full Louvain algorithm. Lambda is the resolution parameter; think of it as
+    lambda = gamma/(vol(G)), where gamma is the more traditional resolution parameter
+    associated with the modularity objective.
 
+    w = weights function, w[i] = weight for node i. This is often the degree of node
+        i, but doesn't have to be.
+    """
     @assert(LinearAlgebra.issymmetric(A))
     n = size(A,1)
 
@@ -368,12 +399,11 @@ function LambdaLouvain(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{
     return Cs
 end
 
-"""
-From a cluster indicator vector, extract a vector of vectors storing clusters
-"""
 
 function clusters_from_cvec(c::Vector{Int64})
-
+    """
+    From a cluster indicator vector, extract a vector of vectors storing clusters
+    """
     Clusters = Vector{Vector{Int64}}()
     for v = 1:maximum(c)
         push!(Clusters, Vector{Int64}())
@@ -385,13 +415,13 @@ function clusters_from_cvec(c::Vector{Int64})
 end
 
 
-"""
-Run Step 1 of the Louvain algorithm: iterate through nodes and greedily move
-nodes to adjacent clusters.
-"""
+
 function LambdaLouvain_Step(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},lam::Float64,randflag::Bool=false,maxits::Int64=Inf,clusterpenalty::Float64=0.0)
     n = size(A,1)
-
+    """
+    Run Step 1 of the Louvain algorithm: iterate through nodes and greedily move
+    nodes to adjacent clusters.
+    """
     # This permutes the node labels, to add randomization in the Louvain
     # algorithm so that you don't always traverse the nodes in the same order
     if randflag
@@ -552,13 +582,13 @@ function mysum(v::SparseArrays.SparseVector{Float64,Int64},inds::Vector{Int64})
     return s
 end
 
-"""
-Step 2 of the Louvain algorithm:
-Collapse a clustering into a new network of supernodes and weighted edges, so
-that you can then run the same greedy node-moving on supernodes.
-"""
-function collapse_clustering(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
 
+function collapse_clustering(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
+    """
+    Step 2 of the Louvain algorithm:
+    Collapse a clustering into a new network of supernodes and weighted edges, so
+    that you can then run the same greedy node-moving on supernodes.
+    """
     n = size(A,1)
     Clusters = Vector{Vector{Int64}}()
     ClusterNeighbs = Vector{Set{Int64}}()

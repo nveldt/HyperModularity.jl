@@ -6,8 +6,8 @@ function Simple_AON_Louvain(H::hypergraph;startclusters="singletons",gamma=1.0,
     intensity function Ω. Intensity function is generated from one of a few
 	different choices:
 		singletons: learn omega from all nodes being in a singleton cluster
-		cliquelouvain: use clique expansion + graph louvain warmstart with parameter gamma
-		starlouvain: use start expansion + graph louvain warmstart with parameter gamma
+		cliquelouvain: use clique expansion + graph louvain warm start with parameter gamma
+		starlouvain: use star expansion + graph louvain warm start with parameter gamma
 	"""
 
 	n = length(H.D)
@@ -88,7 +88,7 @@ end
 
 function AON_Louvain(H::hypergraph,Ω::IntensityFunction;α,clusterpenalty=0,kmax=maximum(keys(H.E)),maxits::Int64=100,bigInt::Bool=true,verbose=true,scan_order="random",Z0 = collect(1:length(H.D)))
 	"""
-	If you prefer to call the function similar to the symmetric HMLL function.
+	Call AON_Louvain with a function call similar to the symmetric HMLL function.
 	"""
 	randflag = !(scan_order == "lexical")
     β, γ, e2n, n2e,w,d,elen = AON_Inputs(H,Ω.ω,α,kmax)

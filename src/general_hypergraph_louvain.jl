@@ -7,10 +7,19 @@ function HyperLouvain(H::hypergraph,Ω::IntensityFunction;α,kmax=maximum(keys(H
     Basic step Louvain algorithm: iterate through nodes and greedily move
     nodes to adjacent clusters. Does not form supernodes and does not recurse.
 
+    # Arguments
+    
     H: hypergraph
     Ω: group interaction function, as constructed by ΩFromDict(D)
     bigInt::Bool: whether to convert the degree sequence to an array of BigInt when evaluating the volume term in second_term_eval(). Recommended.
-    return: Z::array{Int64, 1}: array of group labels.
+    α: parameter controling intensity function.
+    kmax: maximum hyperedge size
+    maxits: maximum number of Louvain passes over nodes in the hypergraph
+    verbose: if false, suppresses algorithm progress updates
+    Z0: warm start vector: nodes begin in these clusters before greedy moves start
+
+    # Returns
+    Z::array{Int64, 1}: array of group labels.
     """
     Hyp, w = hyperedge_formatting(H)    # hyperedge to node list
     node2edges = EdgeMap(H)             # node to hyperedge list
@@ -149,7 +158,7 @@ end
 
 function SuperNodeStep(H::hypergraph,Z::Vector{Int64},kmax::Int64,Ω,maxits::Int64=100,bigInt::Bool=true;α,verbose=true)
     """
-    A Louvain step, but starting with all nodes in an arbitrary initial cluster
+    A Louvain step, starting with all nodes in an arbitrary initial cluster
     assignment Z. Louvain only considers moving an entire cluster at once.
     Running this code with Z = collect(1:n) is equivalent to HypergraphLouvain
 
