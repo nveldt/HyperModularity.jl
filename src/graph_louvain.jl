@@ -583,55 +583,50 @@ function mysum(v::SparseArrays.SparseVector{Float64,Int64},inds::Vector{Int64})
 end
 
 
-function collapse_clustering(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
+function collapse_clustering(A::SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
     """
     Step 2 of the Louvain algorithm:
     Collapse a clustering into a new network of supernodes and weighted edges, so
     that you can then run the same greedy node-moving on supernodes.
     """
     n = size(A,1)
+    # Fill cluster arrays (faster than working with the "find" function)
     Clusters = Vector{Vector{Int64}}()
-    ClusterNeighbs = Vector{Set{Int64}}()
-    Neighbs, degvec = ConstructAdj(A,n)
-
     for v = 1:maximum(c)
         push!(Clusters, Vector{Int64}())
-        push!(ClusterNeighbs, Set{Int64}())
     end
 
     for i = 1:n
         push!(Clusters[c[i]],i)
-        # Also keep track of which clusters are adjacent clusters
-        for j in Neighbs[i]
-            if c[j] != c[i]
-                push!(ClusterNeighbs[c[i]],c[j])
-            end
-        end
     end
 
-    # Number of supernodes to form = number of clusters
+    # Number of supernodes to form
     N = round(Int64,maximum(c))
 
     I = Vector{Int64}()
     J = Vector{Int64}()
     V = Vector{Float64}()
     wnew = zeros(N)
+    Anew = zeros(N,N)
+    start = time()
     # Construct a new sparse matrix with new node weights
     for i = 1:N
-        Ci = sort(Clusters[i])
+        #Ci = findall(x->x == i,c)
+        Ci = Clusters[i]
         wnew[i] = sum(w[Ci])
-        ACi = A[:,Ci]
-        for j in ClusterNeighbs[i]
+        ACi = A[Ci,:]
+        for j = i+1:N
             Cj = Clusters[j]
-            Eij = sum(ACi[Cj,:])
-            push!(I,i)
-            push!(J,j)
-            push!(V,Eij)
+            Eij = sum(ACi[:,Cj])
+            Anew[i,j] = Eij
         end
     end
+    getedges = time()-start
 
-    Anew = SparseArrays.sparse(I,J,V,N,N)
+    start = time()
+    # Anew = sparse(I,J,V,N,N)
     Anew = Anew+Anew'
+    Anew = sparse(Anew)
 
     return Anew, wnew
 end
