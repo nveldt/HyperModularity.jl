@@ -583,7 +583,7 @@ function mysum(v::SparseArrays.SparseVector{Float64,Int64},inds::Vector{Int64})
 end
 
 
-function collapse_clustering(A::SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
+function collapse_clustering(A::SparseArrays.SparseMatrixCSC{Float64,Int64},w::Vector{Float64},c::Vector{Int64})
     """
     Step 2 of the Louvain algorithm:
     Collapse a clustering into a new network of supernodes and weighted edges, so
